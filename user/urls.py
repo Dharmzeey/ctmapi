@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
   
-  # path('user/create/', views.user_create, name="user_create"), # This will be done via browser
+  path('user/create/', views.user_create, name="user_create"), # This will be done via browser
   path('user/login/', views.user_login, name="user_login"),
   path('user/addinfo/', views.user_addinfo, name="user_addinfo"),
   path('user/updateinfo/', views.user_updateinfo, name="user_updateinfo"),

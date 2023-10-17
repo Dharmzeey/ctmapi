@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     
-  path('stores/', views.list_stores, name="list_stores"),
+  path('', views.list_stores, name="list_stores"),
   path('filterstoreplaces/', views.filter_store_place, name="filter_store_place"), #Async request
   path('loadfilteredstores/', views.load_filtered_stores, name="load_filtered_stores"), #Async request
   path('searchstores/', views.search_store, name="search_stores"),

@@ -87,10 +87,10 @@ class CreateStore(APIView):
     try:
       Vendor.objects.get(seller=request.user)
     except Vendor.DoesNotExist:
-      return Response({"message": "You are not a vendor", "token": get_validate_send_token(request)}, status=status.HTTP_403_FORBIDDEN)
+      return Response({"message": "You are not a vendor"}, status=status.HTTP_403_FORBIDDEN)
     try:
       Store.objects.get(owner=request.user.selling_vendor)
-      data = {"message": "Store for this user exitst already", "token": get_validate_send_token(request)}
+      data = {"message": "Store for this user exitst already"}
       return Response(data, status=status.HTTP_409_CONFLICT)
     except Store.DoesNotExist:
       serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -99,7 +99,7 @@ class CreateStore(APIView):
         serializer.save(owner=vendor)
         data = {"data": serializer.data, "message": "Store Information Created", "token": get_validate_send_token(request)}
         return Response(data, status=status.HTTP_201_CREATED)
-      return Response({"message": str(serializer.errors), 'token': get_validate_send_token(request)}, status=status.HTTP_400_BAD_REQUEST)
+      return Response({"message": str(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
 create_store = CreateStore.as_view()
 
 
@@ -107,15 +107,15 @@ class EditStore(APIView):
   permission_classes = [IsAuthenticated]
   serializer_class = customAPISerializers.StoreSerializer
   def patch(self, request):
-    token = get_validate_send_token(request)
     store = get_object_or_404(Store, owner=self.request.user.selling_vendor.id)
     if store.owner.active_subscription == False:
       return Response({"message": "Store not active"}, status=status.HTTP_404_NOT_FOUND)
     serializer = self.serializer_class(instance=store, data=request.data, partial=True, context={'request': request})
     if serializer.is_valid():
-      data = {"message": "Profile updated successfully", "data": serializer.data, "token": token}
+      serializer.save()
+      data = {"message": "Store profile updated successfully", "data": serializer.data}
       return Response(data, status=status.HTTP_200_OK)
-    data = {"message": render_errors(serializer.errors), "token": token}
+    data = {"message": render_errors(serializer.errors)}
     return Response(data, status=status.HTTP_400_BAD_REQUEST)
 edit_store = EditStore.as_view()
 
@@ -175,8 +175,8 @@ search_product = SearchProduct.as_view()
 
 
 class AddProduct(generics.CreateAPIView):
-  parser_classes = (MultiPartParser,)
   permission_classes = [IsAuthenticated]
+  parser_classes = (MultiPartParser,)  
   serializer_class = customAPISerializers.ProductSerializer
   
   def create(self, request, *args, **kwargs):
@@ -230,7 +230,7 @@ class EditProduct(generics.UpdateAPIView):
     if request.user.selling_vendor.active_subscription == False:
       return Response({"message": "Store is not active"}, status=status.HTTP_403_FORBIDDEN)
     update_response = super().update(request, *args, **kwargs)
-    data = {"message": "Product updated", "data": update_response.data, "token": get_validate_send_token(request)}
+    data = {"message": "Product updated", "data": update_response.data}
     return Response(data)
 edit_product = EditProduct.as_view()
 
