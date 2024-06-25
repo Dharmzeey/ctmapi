@@ -32,8 +32,9 @@ class UserCreate(APIView):
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         return Response(data, status=status.HTTP_201_CREATED)
       except IntegrityError as e:
-        return Response({'message': 'User with this email or username already exists.'}, status=status.HTTP_409_CONFLICT)
-    return Response({'message': f'{serializer.errors}'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'errors': {'username' :'User with this email or username already exists.'}}, status=status.HTTP_409_CONFLICT)
+    data = {"errors": render_errors(serializer.errors)}
+    return Response(data, status=status.HTTP_400_BAD_REQUEST)
 user_create = UserCreate.as_view()
 
 
@@ -45,7 +46,7 @@ class UserLogin(APIView):
     try:
       user = User.objects.get(username=username)
     except User.DoesNotExist:
-      return Response({"message": "User does not exists"}, status=status.HTTP_404_NOT_FOUND)
+      return Response({"message": {'user': "User does not exists"}}, status=status.HTTP_404_NOT_FOUND)
     user = authenticate(request, username=username, password=password)
     if user is not None:
       login(request, user)
@@ -79,7 +80,7 @@ class UserAddInfo(APIView):
         return Response(data, status=status.HTTP_409_CONFLICT)
       data = {"message": "Profile created successfully", "data": serializer.data}
       return Response(data, status=status.HTTP_201_CREATED)
-    data = {"message": render_errors(serializer.errors)}
+    data = {"errors": render_errors(serializer.errors)}
     return Response(data, status=status.HTTP_400_BAD_REQUEST)
 user_addinfo = UserAddInfo.as_view()
 
@@ -93,13 +94,13 @@ class UserUpdateInfo(APIView):
       UserInfo.objects.get(user=request.user)
       user = request.user.user_info
     except UserInfo.DoesNotExist:
-      return Response({"message": "Update your user info"}, status=status.HTTP_404_NOT_FOUND)
+      return Response({"message": "Add your user information"}, status=status.HTTP_404_NOT_FOUND)
     serializer = self.serializer_class(instance=user, data=request.data, partial=True, context={'request': request})
     if serializer.is_valid():
       serializer.save()
       data = {"message": "Profile updated successfully", "data": serializer.data}
       return Response(data, status=status.HTTP_200_OK)
-    data = {"message": render_errors(serializer.errors)}
+    data = {"errors": render_errors(serializer.errors)}
     return Response(data, status=status.HTTP_400_BAD_REQUEST)
 user_updateinfo = UserUpdateInfo.as_view()
 

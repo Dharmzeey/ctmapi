@@ -8,12 +8,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-from .models import Product, Store
+from .models import Product, Store, Category, SubCategory
 from user.models import Vendor, State, Location, Institution
 from utilities.store import load_stores_helper
 from utilities2.error_handler import render_errors
 from utilities2.token_handler import get_validate_send_token
-from utilities2.product_handler import filter_store
+# from utilities2.product_handler import filter_store
 
 from . import serializers as customAPISerializers
 
@@ -153,25 +153,38 @@ detail_store = StoreDetails.as_view()
 product api view commences here
 """
 
-class SearchProduct(generics.ListAPIView):
-  serializer_class = customAPISerializers.ProductSerializer
-  def get_queryset(self):
-    stores = filter_store(self.request, Store)
-    q = self.request.data["q"]
-    if q:
-      return Product.objects.filter(
-        Q(title__icontains=q)|
-        Q(description__icontains=q),
-        vendor__active_subscription=True,
-        store__in=stores
-      )
-    return super().get_queryset()
-  def list(self, request, *args, **kwargs):
-    list_response = super().list(request, *args, **kwargs)
-    if len(list_response.data) < 1:
-      return Response({"message": "No product found"}, status=status.HTTP_204_NO_CONTENT)
-    return list_response
-search_product = SearchProduct.as_view()
+class LoadCategory(APIView):
+  def get(self, request):
+    categories = Category.objects.all()
+    sub_categories = SubCategory.objects.all()
+    category_serializer = customAPISerializers.CategorySerializer(instance=categories, many=True, context={'request': request})
+    sub_categories_serializer = customAPISerializers.SubCategorySerializer(instance=sub_categories, many=True)
+    data = {
+      "categories": category_serializer.data,
+      "subcategories": sub_categories_serializer.data
+    }
+    return Response(data, status=status.HTTP_200_OK)
+load_categories = LoadCategory.as_view()
+
+# class SearchProduct(generics.ListAPIView):
+#   serializer_class = customAPISerializers.ProductSerializer
+#   def get_queryset(self):
+#     stores = filter_store(self.request, Store)
+#     q = self.request.data["q"]
+#     if q:
+#       return Product.objects.filter(
+#         Q(title__icontains=q)|
+#         Q(description__icontains=q),
+#         vendor__active_subscription=True,
+#         store__in=stores
+#       )
+#     return super().get_queryset()
+#   def list(self, request, *args, **kwargs):
+#     list_response = super().list(request, *args, **kwargs)
+#     if len(list_response.data) < 1:
+#       return Response({"message": "No product found"}, status=status.HTTP_204_NO_CONTENT)
+#     return list_response
+# search_product = SearchProduct.as_view()
 
 
 class AddProduct(generics.CreateAPIView):

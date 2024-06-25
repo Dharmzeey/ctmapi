@@ -3,5 +3,4 @@ __pycache__
 *.pyc
 develpoment.py
 media
-ngrok.exe
-migrations/
+migrations

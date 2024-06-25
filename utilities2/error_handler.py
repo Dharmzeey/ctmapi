@@ -8,8 +8,7 @@ def render_errors(errors):
   Returns:
       _type_: Dict[str, list]
   """
-  error_messages = {}
-  for field in errors:
-    err = errors[field][0]
-    error_messages[field] = [str(err)]
-  return error_messages
+  custom_errors = {}
+  for field, errors in errors.items():
+    custom_errors[field] = ', '.join(errors)
+  return custom_errors
