@@ -5,9 +5,6 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-SECRET_KEY = 'django-insecure-(*m4ucy*3wh8w1g&60-@e&gd6t09e#t_%!ujt9s=+mnf!ay(h^'
-
-DEBUG = True
 
 ALLOWED_HOSTS = []
 
@@ -33,14 +30,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',
-    
-    'dj_rest_auth',
-    'django.contrib.sites',
 
-    'allauth',
-    'allauth.account',
-    'dj_rest_auth.registration',
-    'allauth.socialaccount',
 ]
 
 MIDDLEWARE = [
@@ -50,7 +40,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -129,4 +118,3 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-SITE_ID = 1
