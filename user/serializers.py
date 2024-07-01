@@ -1,14 +1,11 @@
 import re
 from rest_framework import serializers
-from user.models import User, UserInfo, State, Location, Institution, Vendor, SubscriptionHistory
-from store.models import Store, Product, ProductImage, Cart, Sales
-
-# USER, STORE 
+from user.models import User, UserInfo, Vendor, SubscriptionHistory
 
 # USER RELATED SERIALIZERS
 
 class UserSerializer(serializers.ModelSerializer):
-  password = serializers.CharField(write_only=True, error_messages={
+  password = serializers.CharField(min_length=8, max_length=150, write_only=True, error_messages={
     'required': 'Please enter a password',
     'min_length': 'Password must be at least 8 characters long',
     'max_length': 'Password must be no more than 128 characters long',
@@ -38,6 +35,48 @@ class UserSerializer(serializers.ModelSerializer):
     if not re.match(pattern, value):
       raise serializers.ValidationError("Invalid username. Please use only alphanumeric characters and underscores.")
     return value
+
+
+class UserLoginSerializer(serializers.Serializer):
+  username = serializers.CharField(min_length=4, max_length=150, error_messages={
+    'required': 'Please enter a username',
+    'min_length': 'Username must be at least 4 characters long',
+    'max_length': 'Username must be no more than 150 characters long',
+    'invalid': 'Please enter a valid username',
+  })
+  password = serializers.CharField(min_length=8, max_length=150, error_messages={
+    'required': 'Please enter a password',
+    'min_length': 'Password must be at least 8 characters long',
+    'max_length': 'Password must be no more than 128 characters long',
+    'invalid': 'Please enter a valid password'
+  })
+
+
+class EmailVeriificationSerializer(serializers.Serializer):
+  pin = serializers.CharField(min_length=6, max_length=6)
+  
+
+class ForgotPasswordSerializer(serializers.Serializer):
+  username = serializers.CharField()
+  email = serializers.EmailField()
+  
+  
+class ResetPasswordSerializer(serializers.Serializer):
+  username = serializers.CharField()
+  email = serializers.EmailField()
+  pin = serializers.CharField(min_length=6, max_length=6)
+  
+
+class CreateNewPasswordSerializer(serializers.Serializer):
+  username = serializers.CharField()
+  email = serializers.EmailField()
+  pin = serializers.CharField(min_length=6, max_length=6)
+  password = serializers.CharField(min_length=8, max_length=150, error_messages={
+    'required': 'Please enter a password',
+    'min_length': 'Password must be at least 8 characters long',
+    'max_length': 'Password must be no more than 128 characters long',
+    'invalid': 'Please enter a valid password'
+  })  
 
   
 class UserInfoSerializer(serializers.ModelSerializer):
@@ -71,7 +110,7 @@ class ActivateSubscriptionSerializer(serializers.Serializer):
     (10000, "FEATURED"),
   )
   package = serializers.ChoiceField(choices=PACKAGES)
-  duration = serializers.IntegerField()
+  duration = serializers.IntegerField() # in months
 
 
 class SubscriptionHistorySerializer(serializers.ModelSerializer):

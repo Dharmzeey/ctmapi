@@ -66,7 +66,7 @@ class ProductImage(models.Model):
   class Meta:
     ordering = ["-id"]
   def __str__(self):
-    return f"{self.product.vendor}-{self.product}"
+    return f"{self.product.vendor} - {self.product}"
 
 
 class Cart(models.Model):

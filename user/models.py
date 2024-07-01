@@ -3,6 +3,7 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from datetime import datetime, timedelta
 
 class State(models.Model):
   name = models.CharField(max_length=20)  
@@ -30,9 +31,38 @@ class User(AbstractUser):
   username = models.CharField(max_length=50, unique=True)
   password = models.CharField(max_length=128)
   email = models.EmailField(unique=True)
+  email_verified = models.BooleanField(default=False)
+  phone_no_verified = models.BooleanField(default=False)
   created = models.DateTimeField(auto_now_add=True)
   updated = models.DateTimeField(auto_now=True)
 
+
+def now_plus_10():
+  """
+  Function that returns current datetime + 10 minutes.
+  """
+  return datetime.now() + timedelta(minutes=10)
+
+class EmailVerification(models.Model):
+  user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_email_verification")
+  email = models.EmailField()
+  email_verification_pin = models.CharField(max_length=6, blank=True, null=True)
+  expiry = models.DateTimeField(default=now_plus_10)
+  
+
+class PhoneVerification(models.Model):
+  user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_verify_phone")
+  phone = models.CharField(max_length=11, validators=[RegexValidator(r'^0\d{10}$', 'Mobile number should be 11 digits starting with 0.')])
+  phone_verification_pin = models.CharField(max_length=6, blank=True, null=True)
+  expiry = models.DateTimeField(default=now_plus_10)
+
+
+class ForgotPassword(models.Model):
+  user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_forgot_password")
+  email = models.EmailField()
+  reset_password_pin = models.CharField(max_length=6, blank=True, null=True)
+  expiry = models.DateTimeField(default=now_plus_10)
+  
 
 class UserInfo(models.Model):
   user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_info")
@@ -45,6 +75,7 @@ class UserInfo(models.Model):
   address = models.CharField(max_length=255)
   tel = models.CharField(max_length=11, validators=[RegexValidator(r'^0\d{10}$', 'Mobile number should be 11 digits starting with 0.')])
   is_vendor = models.BooleanField(default=False)
+
   def __str__(self):
     return self.user.username
   

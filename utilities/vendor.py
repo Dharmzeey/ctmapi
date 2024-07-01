@@ -38,6 +38,7 @@ def view_vendor(request):
   current_time = timezone.localize(datetime.now())
   days_remaining = expiry - current_time
   try:
+    # this will check if it is free trial or paid subscription, free trial is for new vendors which will be yet to have a subscription history. But a paid subscription will already have a subscription
     latest_sub = SubscriptionHistory.objects.filter(vendor=vendor)[0]
   except:
     latest_sub = "Free Trial"

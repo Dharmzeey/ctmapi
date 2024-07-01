@@ -1,41 +1,9 @@
-import re
 from rest_framework import serializers
-from user.models import User, UserInfo, State, Location, Institution, Vendor, SubscriptionHistory
-from store.models import Store, Product, ProductImage, Cart, Sales
+from rest_framework.exceptions import NotFound
+from store.models import Store, Product, ProductImage
 from .models import Category, SubCategory
 
-# USER, STORE 
 
-class StateSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = State
-    fields = "__all__"
-
-    
-class LocationSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Location
-    fields = "__all__"
-
-    
-class InstitutionSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Institution
-    fields = ["id", "name", "state", "location"]
-    depth = 1
-
-
-class VendorSerializer(serializers.ModelSerializer):
-  class Meta:
-    model = Vendor
-    fields = "__all__"
-  def to_representation(self, instance):
-    representation = super().to_representation(instance)
-    representation['seller'] = instance.seller.username
-    return representation
-    
-
-    
 # store and product related
 class CategorySerializer(serializers.ModelSerializer):
   class Meta:
@@ -67,45 +35,71 @@ class ProductImageSerializer(serializers.ModelSerializer):
     model = ProductImage
     fields = "__all__"
   
-  def to_representation(self, instance):
-    representation = super().to_representation(instance)
-    representation['product'] = instance.product.title
-    return representation
+  # def to_representation(self, instance):
+  #   representation = super().to_representation(instance)
+  #   representation['product'] = instance.product.title
+  #   return representation
     
-    
+
 class ProductSerializer(serializers.ModelSerializer) :
-  product_images = ProductImageSerializer(many=True, read_only = True, source='product_image')
+  product_images = ProductImageSerializer(many=True, read_only=True, source='product_image')
   uploaded_images = serializers.ListField(
     child = serializers.ImageField(max_length = 1000000, allow_empty_file = False, use_url = False),
     write_only = True
     )
+  image_ids_changed = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+  image_ids_deleted = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+  new_images_added = serializers.ListField(
+    child =  serializers.ImageField(max_length = 1000000, allow_empty_file = False, use_url = False), write_only=True, required=False
+  )
   
   class Meta:
     model = Product
-    fields = ["id", "uuid", "vendor", "store", "title", "description", "thumbnail", "price", "product_images", "uploaded_images"]
+    fields = ["id", "uuid", "vendor", "store", "category", "subcategory", "title", "description", "thumbnail", "price", "product_images", "uploaded_images", "image_ids_changed", "new_images_added", "image_ids_deleted"]
     read_only_field = ["uuid", "vendor", "store"]
     
   def to_representation(self, instance):
     representation = super().to_representation(instance)
     representation['vendor'] = instance.vendor.seller.username
     representation['store'] = instance.store.store_name
+    if instance.category:
+      representation['category'] = instance.category.name
+    if instance.subcategory:
+      representation['subcategory'] = instance.subcategory.name
     return representation
 
   def create(self, validated_data):
-    uploaded_data = validated_data.pop('uploaded_images')
+    uploaded_images = validated_data.pop('uploaded_images')
     new_product = Product.objects.create(**validated_data)
-    for uploaded_item in uploaded_data:
-      ProductImage.objects.create(product = new_product, image = uploaded_item)
+    for uploaded_image in uploaded_images:
+      ProductImage.objects.create(product=new_product, image=uploaded_image)
     return new_product
   
-  def clear_existing_images(self, instance):
-    for image in instance.product_image.all():
-      image.delete()
-  
-  def update(self, instance, validated_data):
-    uploaded_data = validated_data.pop('uploaded_images', None)
-    if uploaded_data:
-      self.clear_existing_images(instance) # This clears the existing images
-      for uploaded_item in uploaded_data:
-        ProductImage.objects.create(product = instance, image = uploaded_item)
+  def update(self, instance, validated_data):    
+    new_images_added = validated_data.pop('new_images_added', None) # incase if the user adds another image when they want to edit product
+    uploaded_images = validated_data.pop('uploaded_images', None) # place holder for when image(s) is/are to be edited    
+    image_ids_changed = validated_data.pop('image_ids_changed', None) # from the above line, the ids of the image being replaced is sent as a list (array) {must tally with above}
+    image_ids_deleted = validated_data.pop('image_ids_deleted', None) #incase if user wants to delete images while editing the product, sent as a list (array)
+        
+    if image_ids_changed:
+      index = 0
+      for uploaded_image in uploaded_images:
+        try:
+          fetched_image = ProductImage.objects.get(id=image_ids_changed[index], product__uuid=instance.uuid)
+          fetched_image.image = uploaded_image
+          fetched_image.save()
+        except:
+          raise NotFound("Image not found for edit")
+        index += 1
+    if new_images_added:
+      for new_image in new_images_added:
+        ProductImage.objects.create(product=instance, image=new_image)
+    if image_ids_deleted:
+      for image_id in image_ids_deleted:
+        try:
+          fetched_image = ProductImage.objects.get(id=image_id, product__uuid=instance.uuid)
+          fetched_image.delete()
+          fetched_image.save()
+        except:
+          raise NotFound("Image not found for delete")
     return super().update(instance, validated_data)
