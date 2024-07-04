@@ -1,3 +1,5 @@
+# THIS PROJECT USED A LOT OF RELATED FIELD LOOKUP, SO THERE IS NEED TO GET FAMILIAR WITH THE "related_field" ARGS PASSED IN THE FOREIGNKEY FIELDS SO AS TO MAKE THE VIEWS.PY EASIER TO UNDERSTAND
+
 # CATEGORY AND SUBCATEGORY, for category field on product upload, a request is sent to the 'fetchcategories' endpoint, then after the returned categories can be displayed also, after the subcategories can be queried by passing the id of the category to the endpoint 'fetchsubcategories' which then returns all the subcategories associated with the category id passed, then the id is also saved.
 
 # DELETE REQUEST, for all successful delete, returns a status 204 meaning no content

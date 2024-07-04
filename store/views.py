@@ -68,9 +68,9 @@ class StoreDetailsView(APIView):
       return Response({"error": "No store found"}, status=status.HTTP_404_NOT_FOUND)
     if store.owner.active_subscription == False:
       return Response({"error": "Store not active"}, status=status.HTTP_403_FORBIDDEN)
-    products = Product.objects.filter(store=store.id)
+    products = Product.objects.filter(store=store.id, active=True)
     store_serializer = customAPISerializers.StoreSerializer(instance=store, context={'request': request})
-    product_serializer = customAPISerializers.ProductSerializer(instance=products, many=True, context={'request': request})
+    product_serializer = customAPISerializers.ProductDetailsSerializer(instance=products, many=True, context={'request': request, "show_images": False})
     if request.user.is_authenticated and request.user.user_info.is_vendor and (store.owner.seller == request.user):
       data = {
         "owner": True,
@@ -169,46 +169,61 @@ product api view commences here
 """
 
 class SearchProductCategoryView(generics.ListAPIView):
-  serializer_class = customAPISerializers.ProductSerializer
+  serializer_class = customAPISerializers.ProductDetailsSerializer
   def get_queryset(self):
     cat = self.request.data["cat"]
     if cat:
       stores = filter_store(self.request)
       return Product.objects.filter(
         category=cat,
-        store__in=stores
+        store__in=stores,
+        active=True
       )
     return super().get_queryset()
+  
   def list(self, request, *args, **kwargs):
     list_response = super().list(request, *args, **kwargs)
     if len(list_response.data) < 1:
       return Response({"error": "No product found"}, status=status.HTTP_404_NOT_FOUND)
     data = {"products": list_response.data}
     return Response(data, status=status.HTTP_200_OK) 
+  
+  def get_serializer_context(self):
+    context = super().get_serializer_context()
+    context['show_images'] = False
+    return context
 search_product_category = SearchProductCategoryView.as_view()
 
+
 class SearchProductSubCategoryView(generics.ListAPIView):
-  serializer_class = customAPISerializers.ProductSerializer
+  serializer_class = customAPISerializers.ProductDetailsSerializer
   def get_queryset(self):
     sub_cat = self.request.data["sub_cat"]
     if sub_cat:
       stores = filter_store(self.request)
       return Product.objects.filter(
         subcategory=sub_cat,
-        store__in=stores
+        store__in=stores,
+        active=True
       )
     return super().get_queryset()
+  
   def list(self, request, *args, **kwargs):
     list_response = super().list(request, *args, **kwargs)
     if len(list_response.data) < 1:
       return Response({"error": "No product found"}, status=status.HTTP_404_NOT_FOUND)
     data = {"products": list_response.data}
     return Response(data, status=status.HTTP_200_OK) 
+  
+  def get_serializer_context(self):
+    context = super().get_serializer_context()
+    context['show_images'] = False
+    return context
 search_product_sub_category = SearchProductSubCategoryView.as_view()
 
 
 class SearchProductView(generics.ListAPIView):
-  serializer_class = customAPISerializers.ProductSerializer
+  serializer_class = customAPISerializers.ProductDetailsSerializer
   def get_queryset(self):
     stores = filter_store(self.request)
     q = self.request.data["q"]
@@ -216,15 +231,22 @@ class SearchProductView(generics.ListAPIView):
       return Product.objects.filter(
         Q(title__icontains=q)|
         Q(description__icontains=q),
-        store__in=stores
+        store__in=stores,
+        active=True
       )
     return super().get_queryset()
+  
   def list(self, request, *args, **kwargs):
     list_response = super().list(request, *args, **kwargs)
     if len(list_response.data) < 1:
       return Response({"error": "No product found"}, status=status.HTTP_404_NOT_FOUND)
     data = {"products": list_response.data}
     return Response(data, status=status.HTTP_200_OK)
+  
+  def get_serializer_context(self):
+    context = super().get_serializer_context()
+    context['show_images'] = False
+    return context
 search_product = SearchProductView.as_view()
 
 
@@ -234,11 +256,14 @@ class AddProductView(generics.CreateAPIView):
   serializer_class = customAPISerializers.ProductSerializer
   
   def create(self, request, *args, **kwargs):
-    vendor = self.request.user.selling_vendor
+    vendor = request.user.selling_vendor
     if vendor.active_subscription == False:
       return Response({"error": "Your store is not active"}, status=status.HTTP_403_FORBIDDEN)
+    current_products = request.user.selling_vendor.product_vendor.all()
+    if current_products.count() >= vendor.max_products:
+      return Response({"error": "Store quota for product reached"}, status=status.HTTP_400_BAD_REQUEST)
     images = request.FILES.getlist('uploaded_images')
-    max_image = int(request.user.selling_vendor.subscription_plan) // 1000
+    max_image = vendor.max_images
     if len(images) >max_image:
       return Response({"error": f"maximum of {max_image} images allowed"}, status=status.HTTP_400_BAD_REQUEST)
     serializer = self.get_serializer(data=request.data)
@@ -256,13 +281,18 @@ add_product = AddProductView.as_view()
 
 
 class ProductDetailsView(APIView):
-  serializer_class = customAPISerializers.ProductSerializer
+  serializer_class = customAPISerializers.ProductDetailsSerializer
+  permission_classes = [IsAuthenticatedOrReadOnly]
   def get(self, request):
     store = get_object_or_404(Store, store_name__iexact=request.data['store_name'])
     product = get_object_or_404(Product, uuid=request.data['product_uuid'], store=store)
     if store.owner.active_subscription == False:
       return Response({"error": "Store is not active"}, status=status.HTTP_403_FORBIDDEN)
-    product_serializer = self.serializer_class(instance=product, context={'request': request})
+    # this "if" below will show the other user that the product is not active but it will not to the owner because he should be be able to see his/her uploaded item regardless of it being active or not
+    if (not store.owner.seller == request.user) and product.active == False:
+      return Response({"error": "Product is not Unavailable"}, status=status.HTTP_403_FORBIDDEN)
+    max_images = store.owner.max_images
+    product_serializer = self.serializer_class(instance=product, context={'request': request, "max_images": max_images})
     if request.user.is_authenticated and request.user.user_info.is_vendor and (store.owner.seller == request.user):
       data = {
         "owner": True,
@@ -288,9 +318,19 @@ class EditProductView(generics.UpdateAPIView):
     return product
   
   def update(self, request, *args, **kwargs):
-    if request.user.selling_vendor.active_subscription == False:
+    vendor = self.request.user.selling_vendor
+    if vendor.active_subscription == False:
       return Response({"error": "Store is not active"}, status=status.HTTP_403_FORBIDDEN)
-    max_image = int(request.user.selling_vendor.subscription_plan) // 1000
+    current_active_products = request.user.selling_vendor.product_vendor.all().filter(active=True)
+    max_products = vendor.max_products
+    fetch_db_object = self.get_object()
+    print(fetch_db_object.active)
+    serializer = self.get_serializer(self.get_object(), data=request.data, partial=kwargs.pop('partial', False))
+    serializer.is_valid(raise_exception=True)
+
+    if current_active_products.count() >= max_products and serializer.validated_data.get('active') != False and fetch_db_object.active == False:
+      return Response({"error": "Unable to edit product as number of active products is maxed out. Upgrade your subscription to accomodate more products or deactivate some products"}, status=status.HTTP_400_BAD_REQUEST)
+    max_image = vendor.max_images
     images = request.FILES.getlist('uploaded_images')
     added_images = request.FILES.getlist('new_images_added')   
     if len(images) > max_image or len(added_images) > max_image:

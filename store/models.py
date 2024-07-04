@@ -21,6 +21,7 @@ class SubCategory(models.Model):
     return self.name
   class Meta:
     ordering = ["name"]
+    verbose_name_plural = "Sub Categories"
 
 
 class Store(models.Model):
@@ -44,20 +45,21 @@ class Store(models.Model):
 
 class Product(models.Model):
   uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-  vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, related_name="product_vendor", null=True)
-  store = models.ForeignKey(Store, on_delete=models.SET_NULL, related_name="product_store", null=True)
+  vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name="product_vendor", null=True)
+  store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name="product_store", null=True)
   category = models.ForeignKey(Category, related_name="product_category", on_delete=models.SET_NULL, null=True)
   subcategory = models.ForeignKey(SubCategory, related_name="product_subcategory", on_delete=models.SET_NULL, null=True)
   title = models.CharField(max_length=50)
   description = models.TextField()
   thumbnail = models.ImageField(upload_to="products/%Y/%m")
   price = models.DecimalField(max_digits=15, decimal_places=2)
+  active = models.BooleanField(default=True)
   created_at = models.DateTimeField(auto_now_add=True)
   
   class Meta:
     ordering = ["-vendor__subscription_plan", "-created_at"]
   def __str__(self):
-    return self.title
+    return f'{self.title} - {self.store} -  {self.vendor}'
   
 
 class ProductImage(models.Model):
@@ -69,6 +71,16 @@ class ProductImage(models.Model):
     return f"{self.product.vendor} - {self.product}"
 
 
+
+
+
+
+
+
+
+
+
+# This will be removed
 class Cart(models.Model):
   owner = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="cart_owner", null=True)
   product = models.ForeignKey(Product, on_delete=models.SET_NULL, related_name="cart_product", null=True)

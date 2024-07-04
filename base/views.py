@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from utilities.store_filter import filter_store
 from store.models import Product
 from user.models import State, Location, Institution
-from store.serializers import ProductSerializer
+from store.serializers import ProductDetailsSerializer
 from . import serializers as customAPISerializers
 
 
@@ -51,8 +51,8 @@ fetch_institutions = FetchInstitutionsView.as_view()
 class HomePageView(APIView):
   def get(self, request):
     stores = filter_store(request)
-    product = Product.objects.filter(store__in=stores)
-    product_serializer = ProductSerializer(instance=product, many=True)
+    product = Product.objects.filter(store__in=stores, active=True)
+    product_serializer = ProductDetailsSerializer(instance=product, many=True, context ={'request': request, "show_images": False})
     if len(product_serializer.data) < 1:
       return Response({"message": "No product found"}, status=status.HTTP_200_OK)
     data = {
@@ -64,14 +64,20 @@ homepage = HomePageView.as_view()
 
 class RecentlyViewedView(generics.ListAPIView):
   model = Product
-  serializer_class = ProductSerializer
+  serializer_class = ProductDetailsSerializer
   
   def get_queryset(self):
     # TAKES IN THE UUID OF THE RECENTLY VIEWED PRODUCTS AS A LIST, WHICH IS SENT FROM THE FRONTEND
     recent = self.request.data["recently_viewed"]
     if recent:
       stores = filter_store(self.request)
-      qs = Product.objects.filter(uuid__in=recent, store__in=stores)
+      qs = Product.objects.filter(uuid__in=recent, store__in=stores, active=True)
       return qs
     return Product.objects.none()  
+  
+  def get_serializer_context(self):
+    context = super().get_serializer_context()
+    context['show_images'] = False
+    return context
+
 recently_viewed = RecentlyViewedView.as_view()

@@ -83,14 +83,54 @@ class UserInfo(models.Model):
 class Vendor(models.Model):
   PACKAGES =(
     (2000, "SPOTLIGHT"),
-    (5000, "HIGHLIGHT"),
-    (10000, "FEATURED"),
+    (3000, "HIGHLIGHT"),
+    (6000, "FEATURED"),
   )
-  seller = models.OneToOneField(User, on_delete=models.SET_NULL, related_name="selling_vendor", null=True)
+
+  seller = models.OneToOneField(User, on_delete=models.CASCADE, related_name="selling_vendor", null=True)
   active_subscription = models.BooleanField(default=False)
   subscription_plan = models.IntegerField(choices=PACKAGES)
   subscription_duration = models.IntegerField()
   subscription_expire = models.DateTimeField()
+  max_products = models.IntegerField()
+  max_images = models.IntegerField()
+  allow_video = models.BooleanField(default=False)
+  
+  DEFAULTS = {
+    2000: {"max_products": 5, "max_images": 3, "allow_video": False},
+    3000: {"max_products": 7, "max_images": 8, "allow_video": False},
+    6000: {"max_products": 50, "max_images": 15, "allow_video": True},
+  }
+  
+  def _deactivate_excess_products(self):
+    max_product = self.max_products
+    all_product = self.product_vendor.all()
+    if all_product.count() > max_product:
+      excess_product = all_product[max_product:] # this will filter out the remaining products that exceeds the maximum product, (especially when a user downgrades their plan)
+      for product in excess_product:
+        product.active = False
+        product.save()
+
+  def _activate_other_products(self):
+    max_product = self.max_products
+    active_products_count = self.product_vendor.all().filter(active=True).count()
+    inactive_products = self.product_vendor.all().filter(active=False)
+    # this "if" will first know the already active products (then take the count), then will take the inactive products and then activate the remaining products while considering the max_product
+    if (inactive_products) and active_products_count < max_product:
+      for product in inactive_products[ : max_product - active_products_count ]:
+        product.active = True
+        product.save()
+  def save(self, *args, **kwargs):
+    if self.subscription_plan in self.DEFAULTS:
+      defaults = self.DEFAULTS[self.subscription_plan]
+      self.max_products = defaults['max_products']
+      self.max_images = defaults['max_images']
+      self.allow_video = defaults['allow_video']
+    if self.product_vendor.all().filter(active=True).count() < self.max_products:
+      self._activate_other_products()
+    else:
+      self._deactivate_excess_products()
+    super().save(*args, **kwargs)
   
   # THIS PROPERTY CHECKS IF THE SUBSCRIPTION EXPIRY IS BEHIND, IF YES, IT WILL DEACTIVATE THE SUBSCRIPTION
   @property
@@ -110,8 +150,8 @@ class SubscriptionHistory(models.Model):
   uuid = models.UUIDField(default=uuid.uuid4, editable=False)
   PACKAGES =(
     (2000, "SPOTLIGHT"),
-    (5000, "HIGHLIGHT"),
-    (10000, "FEATURED"),
+    (3000, "HIGHLIGHT"),
+    (6000, "FEATURED"),
   )
   vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, related_name="vendor_subscription", null=True)
   amount_paid = models.DecimalField(max_digits=8, decimal_places=2)

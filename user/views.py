@@ -279,7 +279,7 @@ vendor_request = VendorRequestView.as_view()
 
 class VendorProfileView(APIView):
   serializer_class = customAPISerializers.VendorSerializer
-  # permission_classes = [IsAuthenticated]
+  permission_classes = [IsAuthenticated]
   def get(self, request):
     if has_vendor_profile(request):
       serializer = self.serializer_class(instance=request.user.selling_vendor)
@@ -306,6 +306,7 @@ class ActivateSubscriptionView(APIView):
       duration = serializer.data["duration"]
       if activate_vendor_subscription(request, package, duration):
         return Response({"message": f"Congratulations!!! Your {duration} months {package} plan has successfully been activated"}, status=status.HTTP_200_OK)
+      
       return Response({"error": "Payment Failed!!!"}, status=status.HTTP_402_PAYMENT_REQUIRED)
     return Response({"errors": render_errors(serializer.errors)}, status=status.HTTP_400_BAD_REQUEST)
 activate_subscription = ActivateSubscriptionView.as_view()
@@ -323,4 +324,3 @@ class SubscriptionHistoryView(APIView):
       data = {"data": serializer.data}
       return Response(data, status=status.HTTP_200_OK)
 subscription_history = SubscriptionHistoryView.as_view()
-

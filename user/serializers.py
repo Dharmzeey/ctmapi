@@ -85,6 +85,7 @@ class UserInfoSerializer(serializers.ModelSerializer):
     model = UserInfo
     fields = ["first_name", "last_name", "email", "state", "location", "institution", "address", "tel"]
     read_only_fields = ["email"]
+  
   def to_representation(self, instance):
     representation = super().to_representation(instance)
     representation['state'] = instance.state.name
@@ -96,7 +97,9 @@ class UserInfoSerializer(serializers.ModelSerializer):
 class VendorSerializer(serializers.ModelSerializer):
   class Meta:
     model = Vendor
-    fields = "__all__"
+    # fields = "__all__"
+    exclude = ("allow_video",)
+  
   def to_representation(self, instance):
     representation = super().to_representation(instance)
     representation['seller'] = instance.seller.username
@@ -106,8 +109,8 @@ class VendorSerializer(serializers.ModelSerializer):
 class ActivateSubscriptionSerializer(serializers.Serializer):
   PACKAGES =(
     (2000, "SPOTLIGHT"),
-    (5000, "HIGHLIGHT"),
-    (10000, "FEATURED"),
+    (3000, "HIGHLIGHT"),
+    (6000, "FEATURED"),
   )
   package = serializers.ChoiceField(choices=PACKAGES)
   duration = serializers.IntegerField() # in months
@@ -117,6 +120,7 @@ class SubscriptionHistorySerializer(serializers.ModelSerializer):
   class Meta:
     model = SubscriptionHistory
     fields = "__all__"
+  
   def to_representation(self, instance):
     representation = super().to_representation(instance)
     representation['vendor'] = instance.vendor.seller.username

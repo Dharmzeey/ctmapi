@@ -34,7 +34,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
   class Meta:
     model = ProductImage
     fields = "__all__"
-  
+    
   # def to_representation(self, instance):
   #   representation = super().to_representation(instance)
   #   representation['product'] = instance.product.title
@@ -55,7 +55,7 @@ class ProductSerializer(serializers.ModelSerializer) :
   
   class Meta:
     model = Product
-    fields = ["id", "uuid", "vendor", "store", "category", "subcategory", "title", "description", "thumbnail", "price", "product_images", "uploaded_images", "image_ids_changed", "new_images_added", "image_ids_deleted"]
+    fields = ["id", "uuid", "vendor", "store", "category", "subcategory", "title", "description", "thumbnail", "price", "active" ,"product_images", "uploaded_images", "image_ids_changed", "new_images_added", "image_ids_deleted"]
     read_only_field = ["uuid", "vendor", "store"]
     
   def to_representation(self, instance):
@@ -103,3 +103,32 @@ class ProductSerializer(serializers.ModelSerializer) :
         except:
           raise NotFound("Image not found for delete")
     return super().update(instance, validated_data)
+
+
+class ProductDetailsSerializer(serializers.ModelSerializer):
+  product_images = ProductImageSerializer(many=True, read_only=True, source='product_image')
+  
+  class Meta:
+    model = Product
+    fields = ["id", "uuid", "vendor", "store", "category", "subcategory", "title", "description", "thumbnail", "price", "active", "product_images"]
+    read_only_field = ["uuid", "vendor", "store"]
+    
+  def to_representation(self, instance):
+    representation = super().to_representation(instance)
+    representation['vendor'] = instance.vendor.seller.username
+    representation['store'] = instance.store.store_name
+    if instance.category:
+      representation['category'] = instance.category.name
+    if instance.subcategory:
+      representation['subcategory'] = instance.subcategory.name
+
+    # this below controls if product_images should be shown or not (images will only show on product details)
+    show_images = self.context.get('show_images', None)
+    if show_images is not None:
+      representation.pop('product_images')
+    
+    # this below controls the rendering of images number based on the store owner plan
+    max_images = self.context.get('max_images', None)
+    if max_images is not None and len(representation['product_images']) > max_images:
+      representation['product_images'] = representation.get('product_images')[:max_images]
+    return representation
